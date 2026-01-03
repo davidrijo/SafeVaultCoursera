@@ -1,0 +1,79 @@
+@HostAddress = http://localhost:5034
+
+### 1. Register Admin (First user registered becomes Admin by logic in Program.cs)
+POST {{HostAddress}}/register
+Content-Type: application/json
+
+{
+  "username": "adminUser",
+  "password": "StrongPassword123!"
+}
+
+### 2. Login Admin (Retrieves JWT Token)
+# @name loginAdmin
+POST {{HostAddress}}/login
+Content-Type: application/json
+
+{
+  "username": "adminUser",
+  "password": "StrongPassword123!"
+}
+
+### Variable to store Admin Token
+@adminToken = {{loginAdmin.response.body.token}}
+
+### 3. Register Normal User
+POST {{HostAddress}}/register
+Content-Type: application/json
+
+{
+  "username": "normalUser",
+  "password": "UserPassword123!"
+}
+
+### 4. Login Normal User (Retrieves JWT Token)
+# @name loginUser
+POST {{HostAddress}}/login
+Content-Type: application/json
+
+{
+  "username": "normalUser",
+  "password": "UserPassword123!"
+}
+
+### Variable to store User Token
+@userToken = {{loginUser.response.body.token}}
+
+### 5. TEST: Post Secret as Admin (Should Succeed & Sanitize XSS)
+POST {{HostAddress}}/secrets
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "content": "<script>alert('XSS Attempt')</script> This is a secret"
+}
+
+### 6. TEST: Post Secret as Normal User (Should Fail - 403 Forbidden)
+POST {{HostAddress}}/secrets
+Content-Type: application/json
+Authorization: Bearer {{userToken}}
+
+{
+  "content": "I should not be able to do this"
+}
+
+### 7. TEST: Access Secrets without Token (Should Fail - 401 Unauthorized)
+GET {{HostAddress}}/secrets
+
+### 8. TEST: Access Secrets with Token (Should Succeed)
+GET {{HostAddress}}/secrets
+Authorization: Bearer {{userToken}}
+
+### 9. TEST: SQL Injection Attempt on Login (Should Fail / Not login)
+POST {{HostAddress}}/login
+Content-Type: application/json
+
+{
+  "username": "' OR '1'='1",
+  "password": "password"
+}
